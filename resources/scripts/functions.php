@@ -65,6 +65,7 @@ function logMessage($message) {
             $logFilePath = getAdjustedCurrentDirectory()."/".$logFileName;
         }
         if (!file_exists($logFilePath)) {
+            // Should check permissions
             $temp = fopen($logFilePath, "a");
             fclose($temp);
             $newSession = true;
@@ -83,7 +84,7 @@ function logMessage($message) {
             fwrite($openFile, $dateAndTime."----- Starting new session ----\n");
         }
         if (!fwrite($openFile, $dateAndTime.$message."\n")) {
-            echo "Failed to write to log!!!";
+            echo "Failed to write log entry to $logFilePath<br>";
         }
 
         // Close the file
@@ -253,6 +254,7 @@ function hasAccess($currentUsersGroups, $contentsACL){
 function hasAccessTo($xmlElement) {
     global $usersGroups;
     global $defaultSecurityValue;
+
     $securityRequirement = getCurrentSecurityRequirement($xmlElement,
                                                          $defaultSecurityValue);
     return hasAccess($usersGroups, $securityRequirement);
@@ -768,14 +770,20 @@ function initializeMainContent() {
 function initializeContent($xmlFile) {
     global $contentXML;
 
+    logMessage("Initializing Content for '$xmlFile'");
+
     if (is_null($contentXML)){
         if ($xmlFile instanceof SimpleXMLElement) {
+            logMessage("xmlFile instace of SimpleXMLElement");
             $contentXML = $xmlFile;
         } else {
             $xmlFile = getPathToXMLFile($xmlFile);
+            logMessage("getting path to xml file '$xmlFile'");
             if (file_exists($xmlFile)) { //$xmlFile should be a string
+                logMessage("File exists '$xmlFile'");
                 $contentXML = simplexml_load_file($xmlFile);
             } else {
+                logMessage("File does not exist: '$xmlFile'");
                 return null;
             }
         }
@@ -1125,11 +1133,17 @@ function parseConfig() {
 
     $logHeader = "parseConfig()";
 
+    logMessage("$logHeader: Parsing config");
+
     //$pathToXMLFiles = getPathToXMLFiles();
     $configFilePath = getPathToXMLFile($configFileName);
-    logMessage("$logHeader configFilePath = $configFilePath");
-    $configXML = simplexml_load_file($configFilePath);
-    logMessage("parseConfig() loaded config file and will now begin parsing");
+    logMessage("$logHeader Attempting to load config file '$configFilePath'");
+    if (file_exists($configFilePath)) {
+        $configXML = simplexml_load_file($configFilePath);
+        logMessage("$logHeader loaded config file and will now begin parsing");
+    } else {
+        logMessage("$logheader '$configFilePath' does not exist!!");
+    }
     //parse access_config
     $accessConfigXML = $configXML->access_config[0];
     foreach ($accessConfigXML as $xmlElement){
@@ -1166,13 +1180,17 @@ function parseConfig() {
         $stringValue = (string)$xmlElement;
         switch ($elementName) {
             case "start_page":
-                $startPage = $stringValue; break;
+                $startPage = $stringValue;
+                break;
             case "main_content":
-                $mainContentFilePath = $stringValue; break;
+                $mainContentFilePath = $stringValue;
+                break;
             case "default_security":
-                $defaultSecurityValue = $stringValue; break;
+                $defaultSecurityValue = $stringValue;
+                break;
             case "domain_name":
-                $domainName = $stringValue; break;
+                $domainName = $stringValue;
+                break;
 
         }
     }
@@ -1307,7 +1325,9 @@ function getNavBarHTML($contentXML) {
  */
 function getImageHTML(SimpleXMLElement $imgXMLElement,
                       $imageWidth, $imageHeight)  {
+    $header = "getImageHTML(): ";
     $output = "";
+    logMessage("$header Getting image html");
     if (hasAccessTo($imgXMLElement)) {
         $urlPrefix = "";
         $urlSuffix = "";
@@ -1352,6 +1372,7 @@ function getImageHTML(SimpleXMLElement $imgXMLElement,
                       "'$embeddedCSSText' src='$src' $altText/>$urlSuffix\n";
         }
     }
+    logMessage("$header Image html = '$output'");
     return $output;
 }
 
@@ -1496,8 +1517,10 @@ function getOutputHTMLWithCustomTag($tagName, $xmlElement,
                                     $shouldExcludeClosingTag,
                                     $shouldInsertCSSMenuClass) {
     $header = "getOutputHTMLWithCustomTag(): ";
+    /*
     logMessage("$header\nBeginning call with:\nTagName=$tagName\n".
                "xmlElement=".getTrimmed($xmlElement)."\naddSwap=....");
+     */
     $outputHTMLAttributes = "";
     //get attribute value css class
     $cssClassAttributeValue = getAttributeValue($xmlElement, "css_class");
@@ -1583,12 +1606,14 @@ function getCustomTaggedHTMLElementString(
 function getElementContentWithStyleTags($xmlElement, $shouldAddSwapToLinks,
                                         $cssMenuClassName) {
     $header = "getElementContentWithStyleTags(): ";
+    /*
     logMessage("$header Beginning call...\n".
                "xmlElement = '".getTrimmed($xmlElement)."'\n".
                "shouldAddSwapToLinks = some boolean\n".
                "cssMenuClassName = '$cssMenuClassName'");
+     */
     $attributes = $xmlElement->attributes();
-    logMessage("$header Obtained attributes from XML Element, '$xmlElement'");
+    //logMessage("$header Obtained attributes from XML Element, '$xmlElement'");
     $output = "";
     $prefix = "";
     $suffix = "";
@@ -1621,7 +1646,7 @@ function getElementContentWithStyleTags($xmlElement, $shouldAddSwapToLinks,
                     
                     // Escape any necessary characters from the url
                     $attribute = clean_url($attribute);
-                    logMessage("$header Clean url = '$attribute'");
+                    //logMessage("$header Clean url = '$attribute'");
                     $target = getAttributeValue($xmlElement, "target");
                     $isExternal = is_link_external($attribute);
                     $loadURLPrefix .= "loadURL.php";
@@ -1662,25 +1687,33 @@ function getElementContentWithStyleTags($xmlElement, $shouldAddSwapToLinks,
         $children = $xmlElement->children();
         $child = $children[0];
         if ($child->getName() == "link") {
+            /*
             logMessage("$header Determined that XML Element, '".
                         getTrimmed($xmlElement)."' has link children. Set ".
                         "inner content to [recursive call]...");
+             */
             $innerContent = parseLink($xmlElement);
+            /*
             logMessage("$header InnerContent is now '$innerContent' after ".
                        "calling parseLink");
+             */
         } else {
+            /*
             logMessage("$header Determined xml element, '".
                         getTrimmed($xmlElement).
                         "' has children, but not LINK children");
+             */
         }
     } else {
+        /*
         logMessage("$header Determined that XML Element, '".
                     getTrimmed($xmlElement)."' does not have any link ".
                     "children. Set inner content to '".getTrimmed($xmlElement).
                     "'");
+         */
     }
     $output = $prefix.$innerContent.$suffix;
-    logMessage("$header Return '$output'");
+    //logMessage("$header Return '$output'");
     return $output;
 }
 /******************************************************************************/

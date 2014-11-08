@@ -188,7 +188,7 @@
           <iframe src="<?php echo $startPage; ?>"
             class="iFrame" id="myDiv" width="100%" height="100%"
             name="innerframe" frameBorder="0">Browser not compatible.
-          </iframe> 
+          </iframe>
         </div>
           <div class="centerdiv_footer"></div>
         </div>
